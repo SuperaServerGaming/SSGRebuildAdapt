@@ -315,7 +315,7 @@ public class PickaxeQuarrySense extends SimpleAdaptation<PickaxeQuarrySense.Conf
     }
 
     return switch (hand.getType()) {
-      case IRON_PICKAXE, DIAMOND_PICKAXE, NETHERITE_PICKAXE -> true;
+      case NETHERITE_PICKAXE -> true;
       default -> false;
     };
   }
