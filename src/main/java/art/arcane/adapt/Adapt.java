@@ -78,6 +78,9 @@ import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.inventorygui.UIWindow;
 import art.arcane.volmlib.util.io.JarScanner;
 import com.jeff_media.customblockdata.CustomBlockData;
+import com.ssg.adaptext.CustomBlockDropGuard;
+import com.ssg.adaptext.NetherSwiftPortal;
+import com.ssg.adaptext.StealthSpeedWatchdog;
 import de.crazydev22.platformutils.AudienceProvider;
 import de.crazydev22.platformutils.Platform;
 import de.crazydev22.platformutils.PlatformUtils;
@@ -154,6 +157,8 @@ public class Adapt extends VolmitPlugin implements ReloadAware {
   private volatile PlaceholderRegistration papiRegistration;
   // AdaptMetrics owns all bstats types; never reference them from this class (slimjar link trap)
   private AdaptMetrics metrics;
+  // SSGAdaptExtensions (merged addon):
+  private StealthSpeedWatchdog stealthSpeedWatchdog;
 
 
   public Adapt() {
@@ -501,7 +506,31 @@ public class Adapt extends VolmitPlugin implements ReloadAware {
     initializeAdaptationListings();
     services.values().forEach(AdaptService::onEnable);
     services.values().forEach(this::registerListener);
+
+    // SSGAdaptExtensions (merged addon):
+    registerNetherSwiftPortal();
+    stealthSpeedWatchdog = new StealthSpeedWatchdog(this);
+    stealthSpeedWatchdog.start();
+    registerListener(new CustomBlockDropGuard(getLogger()));
+
     ConfigFileSupport.flushCreatedConfigSummary();
+  }
+
+  private void registerNetherSwiftPortal() {
+    Skill<?> nether = adaptServer.getSkillRegistry().getSkill("nether");
+    if (nether == null) {
+      warn("Skill 'nether' nao encontrada; nether-swift-portal nao foi registrada.");
+      return;
+    }
+
+    for (Adaptation<?> existing : nether.getAdaptations()) {
+      if (existing instanceof SimpleAdaptation<?> simple && "nether-swift-portal".equals(simple.getName())) {
+        return;
+      }
+    }
+
+    nether.registerAdaptation(new NetherSwiftPortal());
+    info("Adaptacao 'nether-swift-portal' registrada na skill Nether.");
   }
 
   private static final Logger GLOWING_ENTITIES_LOGGER = Logger.getLogger("GlowingEntities");
@@ -643,6 +672,10 @@ public class Adapt extends VolmitPlugin implements ReloadAware {
     unregisterPapiExpansion();
     if (!alreadyDrained.compareAndSet(false, true)) {
       return;
+    }
+    // SSGAdaptExtensions (merged addon):
+    if (stealthSpeedWatchdog != null) {
+      stealthSpeedWatchdog.stop();
     }
     if (services != null) {
       services.values().forEach(AdaptService::onDisable);
